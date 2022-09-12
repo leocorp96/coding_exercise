@@ -1,0 +1,8 @@
+<library path="lib/libbotsandus_planner">
+  <class name="bup_local_planner/BotsAndUsPlannerROS" type="bup_local_planner::BotsAndUsPlannerROS" base_class_type="nav_core::BaseLocalPlanner">
+    <description>
+      This local planner plugin enables the mobile base to reach desired
+      destinations based on the generated local plan(s)
+    </description>
+  </class>
+</library>
