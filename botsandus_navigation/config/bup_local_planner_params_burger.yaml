@@ -30,8 +30,11 @@ BotsAndUsPlannerROS:
   sim_granularity: 0.025
   ang_sim_granularity: 0.025
   prune_plan: true
+
+# Waypoint Parameters
   dsample_dist: 0.25 #Distance at which the global plan should be downsampled
   use_p2p: true #If True changes planner behaviour to navigate using Point-to-Point waypoint navigation style
+  use_static: true #If True, planner follows only the first global plan generated
 
 # Trajectory Scoring
   heading_scoring: true

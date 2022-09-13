@@ -682,8 +682,6 @@ namespace bup_local_planner
     double yaw = getYaw(global_pose_.pose.orientation);
     double vel_yaw = getYaw(robot_vel.pose.orientation);
     ROS_WARN_STREAM("Goal Yaw: " << goal_th << " Robot Yaw: " << yaw);
-    cmd_vel.linear.x = 0;
-    cmd_vel.linear.y = 0;
     double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
 
     //compute feasible velocity limits in robot space
@@ -713,6 +711,8 @@ namespace bup_local_planner
     ROS_WARN("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
     if(valid_cmd)
     {
+      cmd_vel.linear.x = 0.0;
+      cmd_vel.linear.y = 0.0;
       cmd_vel.angular.z = sign(v_theta_samp) * std::max(fabs(v_theta_samp), fabs(boost::get<double>(fetchData("min_in_place_vel_theta"))));
       return true;
     }
@@ -786,6 +786,7 @@ namespace bup_local_planner
       goal_vec[0] = plan[idx].pose.position.x;
       goal_vec[1] = plan[idx].pose.position.y;
       goal_th = getYaw(plan[idx].pose.orientation);
+
       if(!checkVisited(goal_vec) || visited_pts_.empty())
       {
         //break if chosen point not reached

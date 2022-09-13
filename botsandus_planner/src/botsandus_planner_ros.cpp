@@ -107,6 +107,10 @@ namespace bup_local_planner
       robot_params_["dsample_dist"] = dvar;
       pn.param("use_p2p", bvar, true);
       robot_params_["use_p2p"] = bvar;
+      use_p2p_ = bvar;
+      pn.param("use_static", bvar, true);
+      robot_params_["use_static"] = bvar;
+      use_static_ = bvar;
 
 
       ros::NodeHandle gn;
@@ -165,8 +169,8 @@ namespace bup_local_planner
       return false;
     }
 
-    if(allow_plan_update_)
-    {
+    if(use_static_ && allow_plan_update_)
+    {//! using static plan option
       //reset the global plan
       global_plan_.clear();
       global_plan_ = orig_global_plan;
@@ -175,12 +179,34 @@ namespace bup_local_planner
       //clear flags
       goal_reached_ = false;
       allow_plan_update_ = false;
-      has_next_point_ = false;
-      fetch_local_goal_ = true;
 
-      //reduce plan resolution and publish waypoints
-      if(boost::get<bool>(bup_->fetchData("use_p2p")))
+      if(use_p2p_)
       {
+        //clear flags
+        has_next_point_ = false;
+        fetch_local_goal_ = true;
+
+        //reduce plan resolution and publish waypoints
+        bup_->downSamplePlan(global_plan_);
+        publishWayPoints(global_plan_, wp_plan_pub_);
+      }
+    }
+    if(!use_static_)
+    {//! continuous global plan update option
+      //reset the global plan
+      global_plan_.clear();
+      global_plan_ = orig_global_plan;
+      bup_->reset();
+      is_initial_rotation_to_goal_completed_ = false;
+
+      //clear flags
+      goal_reached_ = false;
+
+      //reduce plan resolution and publish waypoints if using P2P navigation
+      if(use_p2p_)
+      {
+        //has_next_point_ = false;
+        //fetch_local_goal_ = true;
         bup_->downSamplePlan(global_plan_);
         publishWayPoints(global_plan_, wp_plan_pub_);
       }
@@ -206,8 +232,8 @@ namespace bup_local_planner
     }
 
     //now we'll prune the plan based on the position of the robot
-    /*if(boost::get<bool>(bup_->fetchData("prune_plan")))
-      bup_->prunePlan(transformed_plan, global_plan_);*/
+    if(boost::get<bool>(bup_->fetchData("prune_plan")))
+      bup_->prunePlan(transformed_plan, global_plan_);
 
     geometry_msgs::PoseStamped drive_cmds;
     drive_cmds.header.frame_id = bup_->getBaseFrame();
@@ -220,7 +246,7 @@ namespace bup_local_planner
       return false;
 
     //Select the immediate goal point and set "has_next" flag
-    if(fetch_local_goal_ && !goal_reached_)
+    if(use_p2p_ && fetch_local_goal_ && !goal_reached_)
     {
       has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_);
       fetch_local_goal_ = false;
@@ -228,13 +254,13 @@ namespace bup_local_planner
 
     //!initial rotate to goal
     if(!is_initial_rotation_to_goal_completed_)
-    {//perform initial base rotation to goal orientation
+    {
       ROS_WARN("Performing initial base-to-goal rotation");
       geometry_msgs::PoseStamped robot_pose = bup_->getGlobalPose();
       double goal_dir = atan2((goal_vec_.y() - robot_pose.pose.position.y),
                               (goal_vec_.x() - robot_pose.pose.position.x));
 
-      bup_->updatePlan(transformed_plan, false);
+      bup_->updatePlan(transformed_plan, !use_p2p_);
       bup_->rotateToGoal(robot_vel, (transformed_plan.size() == 1) ? goal_th_ : goal_dir, cmd_vel, true);
       if(bup_->isGoalOrientationReached((transformed_plan.size() == 1) ? goal_th_ : goal_dir))
       {
@@ -260,12 +286,12 @@ namespace bup_local_planner
         ROS_WARN_STREAM("Going to next point");
         return true;
       }
-      ROS_WARN("Final Goal Point reached!");
+      ROS_DEBUG("Final Goal Point reached!");
 
       //final goal orientation correction
       if(bup_->isGoalOrientationReached(goal_th_))
       {
-        ROS_WARN_STREAM("EOF Trajectory!");
+        ROS_DEBUG_STREAM("EOF Trajectory!");
         cmd_vel.linear.x = 0.0;
         cmd_vel.linear.y = 0.0;
         cmd_vel.angular.z = 0.0;
@@ -277,7 +303,7 @@ namespace bup_local_planner
       else
       {//! if robot is in goal xy position, rotate inplace to match goal orientation and stop
         // update the plan in the main planner
-        bup_->updatePlan(transformed_plan);
+        bup_->updatePlan(transformed_plan, !use_p2p_);
 
         //if we're not stopped yet... we want to stop... taking into account the acceleration limits of the robot
         nav_msgs::Odometry base_odom;
@@ -294,7 +320,6 @@ namespace bup_local_planner
         }
       }
 
-      //publish an empty plan because we've reached our goal position
       publishPlan(transformed_plan, global_plan_pub_);
       publishPlan(local_plan, local_plan_pub_);
       //we don't actually want to run the controller when we're just rotating to goal
@@ -302,9 +327,9 @@ namespace bup_local_planner
     }
     //! if goal position not reached
     // update the plan in the main planner
-    bup_->updatePlan(transformed_plan, false);
+    bup_->updatePlan(transformed_plan, !use_p2p_);
     //compute what trajectory to drive along
-    Trajectory path = bup_->findBestPath(robot_vel, drive_cmds, boost::get<bool>(bup_->fetchData("use_p2p")));
+    Trajectory path = bup_->findBestPath(robot_vel, drive_cmds, use_p2p_);
     //get drive commands
     cmd_vel.linear.x = drive_cmds.pose.position.x;
     cmd_vel.linear.y = drive_cmds.pose.position.y;

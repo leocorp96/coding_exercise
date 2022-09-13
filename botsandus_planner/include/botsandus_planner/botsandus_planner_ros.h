@@ -63,7 +63,7 @@ namespace bup_local_planner
   private:
     bool initialized_, has_next_point_, allow_plan_update_,
     is_initial_rotation_to_goal_completed_, is_final_rotation_to_goal_completed_,
-    goal_reached_, prune_plan_, fetch_local_goal_;
+    goal_reached_, prune_plan_, fetch_local_goal_, use_p2p_, use_static_;
     Eigen::Vector2d goal_vec_;
     double goal_th_;
     RobotParams robot_params_;
