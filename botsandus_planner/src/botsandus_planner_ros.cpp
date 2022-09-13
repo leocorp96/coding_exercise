@@ -42,6 +42,8 @@ namespace bup_local_planner
       robot_params_["max_rot_vel"] = dvar;
       pn.param("min_rot_vel", dvar, 0.35);
       robot_params_["min_rot_vel"] = dvar;
+      pn.param("min_in_place_vel_theta", dvar, 0.2);
+      robot_params_["min_in_place_vel_theta"] = dvar;
 
       pn.param("max_vel_x", dvar, 1.0);
       robot_params_["max_vel_x"] = dvar;
@@ -163,13 +165,16 @@ namespace bup_local_planner
       //reset the global plan
       global_plan_.clear();
       global_plan_ = orig_global_plan;
-      //reduce plan resolution
-      bup_->downSamplePlan(global_plan_);
+      bup_->reset();
+
       //clear flags
-      if(goal_reached_)
-        bup_->reset();
       goal_reached_ = false;
       allow_plan_update_ = false;
+      has_next_point_ = false;
+      fetch_local_goal_ = true;
+
+      //reduce plan resolution
+      bup_->downSamplePlan(global_plan_);
       publishWayPoints(global_plan_, wp_plan_pub_);
     }
     return true;
@@ -222,8 +227,8 @@ namespace bup_local_planner
                               (goal_vec_.x() - robot_pose.pose.position.x));
 
       bup_->updatePlan(transformed_plan, false);
-      bup_->rotateToGoal(robot_vel, goal_dir, cmd_vel, true);
-      if(bup_->isGoalOrientationReached(goal_dir))
+      bup_->rotateToGoal(robot_vel, (transformed_plan.size() == 1) ? goal_th_ : goal_dir, cmd_vel, true);
+      if(bup_->isGoalOrientationReached((transformed_plan.size() == 1) ? goal_th_ : goal_dir))
       {
         is_initial_rotation_to_goal_completed_ = true;
         cmd_vel.angular.z = 0.0;

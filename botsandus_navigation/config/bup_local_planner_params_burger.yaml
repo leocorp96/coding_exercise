@@ -6,7 +6,7 @@ BotsAndUsPlannerROS:
 
   max_rot_vel:  0.8
   min_rot_vel: -0.8
-  #min_in_place_vel_theta: 1.0
+  min_in_place_vel_theta: 0.2
 
   acc_lim_x: 1.0
   acc_lim_theta: 0.6

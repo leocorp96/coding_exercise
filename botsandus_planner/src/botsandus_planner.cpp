@@ -723,7 +723,7 @@ namespace bup_local_planner
     ROS_WARN("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
     if(valid_cmd)
     {
-      cmd_vel.angular.z = v_theta_samp;
+      cmd_vel.angular.z = sign(v_theta_samp) * std::max(fabs(v_theta_samp), fabs(boost::get<double>(fetchData("min_in_place_vel_theta"))));
       return true;
     }
 
@@ -797,7 +797,7 @@ namespace bup_local_planner
           //check if this is the last point in plan
           if(idx == (plan.size() - 1))
           {
-            ROS_WARN("Last point!!");
+            //ROS_WARN("Last point!!");
             return false;
           }
           break;
@@ -806,11 +806,10 @@ namespace bup_local_planner
           visited_pts_.push_back(goal_vec);
       }
     }
-    //plan.erase(plan.begin() + uint(idx));
 
     ROS_WARN_STREAM("Goal @: " << goal_vec.x() << " | " << goal_vec.y() <<
                     " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);
-    return true;
+    return (plan.size() == 1) ? false : true;
   }
 
   void BotsAndUsPlanner::reset()
