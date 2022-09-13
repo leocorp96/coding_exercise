@@ -28,14 +28,10 @@ namespace bup_local_planner
       return;
     }
     std::vector<geometry_msgs::PoseStamped> res;
-    double ds_dist = 0.25; //25cm
-    ROS_WARN_STREAM_THROTTLE(1, "Pre-Sample Length: " << computeEuclidean(
-                      Eigen::Vector2d(plan[0].pose.position.x, plan[0].pose.position.y),
-                      Eigen::Vector2d(plan.back().pose.position.x, plan.back().pose.position.y))
-        << " Size: " << plan.size());
+    double ds_dist = boost::get<double>(fetchData("dsample_dist"));
+
     res.push_back(plan[0]); //add first point
-    ROS_WARN("Downsample");
-    //ROS_WARN_STREAM("First point: " << plan[0].pose.position.x << " | " << plan[0].pose.position.y);
+    ROS_DEBUG("Downsampling global plan at %fm", ds_dist);
     for(std::size_t t = 1; t < plan.size(); t++)
     {
       double prev_dist = computeEuclidean(
@@ -44,25 +40,17 @@ namespace bup_local_planner
       //check if last point in plan
       if((t == (plan.size()-1)) && (prev_dist < ds_dist))
       {
-        //if(res.size() > 1)
         res.pop_back();
         res.push_back(plan[t]);
-        /*ROS_WARN_STREAM("Cur goal: " << plan[t].pose.position.x << " | " << plan[t].pose.position.y <<
-                        " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);*/
+        ROS_DEBUG_STREAM("Cur goal: " << plan[t].pose.position.x << " | " << plan[t].pose.position.y <<
+                        " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);
         break;
       }
 
-      if(prev_dist >= ds_dist)
-      {//add point if greater/equal to ds_dist
+      if(prev_dist >= ds_dist)//add point if greater/equal to ds_dist
         res.push_back(plan[t]);
-      }
     }
     plan = res;
-    ROS_WARN_STREAM_THROTTLE(1, "Post-Sample Length: " << computeEuclidean(
-                      Eigen::Vector2d(plan[0].pose.position.x, plan[0].pose.position.y),
-                      Eigen::Vector2d(plan.back().pose.position.x, plan.back().pose.position.y))
-        << " Size: " << plan.size());
-
   }
 
   bool BotsAndUsPlanner::transformGlobalPlan(const tf2_ros::Buffer& tf,
@@ -101,7 +89,8 @@ namespace bup_local_planner
       double sq_dist = 0;
 
       //we need to loop to a point on the plan that is within a certain distance of the robot
-      while(i < global_plan.size()) {
+      while(i < global_plan.size())
+      {
         sq_dist = computeEuclidean(Eigen::Vector2d(robot_pose.pose.position.x, robot_pose.pose.position.y),
                                    Eigen::Vector2d(global_plan[i].pose.position.x, global_plan[i].pose.position.y));
         if (sq_dist <= sq_dist_threshold) {
@@ -112,7 +101,8 @@ namespace bup_local_planner
 
       geometry_msgs::PoseStamped newer_pose;
       //now we'll transform until points are outside of our distance threshold
-      while(i < global_plan.size() && sq_dist <= sq_dist_threshold) {
+      while(i < global_plan.size() && sq_dist <= sq_dist_threshold)
+      {
         const geometry_msgs::PoseStamped& pose = global_plan[i];
         tf2::doTransform(pose, newer_pose, plan_to_global_tf);
 
@@ -250,7 +240,7 @@ namespace bup_local_planner
 
   Trajectory BotsAndUsPlanner::createTrajectories(double x, double y, double theta, double vx, double vy, double vtheta)
   {
-    //compute feasible velocity limits in robot space
+    //determine feasible velocity limits in robot space
     double max_vel_x = boost::get<double>(fetchData("max_vel_x"));
     double min_vel_x, min_vel_theta, max_vel_theta;
     double acc_x = boost::get<double>(fetchData("acc_lim_x")), acc_th = boost::get<double>(fetchData("acc_lim_theta"));
@@ -284,7 +274,7 @@ namespace bup_local_planner
     best_traj->cost_ = -1.0;
     Trajectory* comp_traj = &traj_two;
     comp_traj->cost_ = -1.0;
-    Trajectory* swap = NULL;
+    Trajectory* swap = nullptr;
 
     //any cell with a cost greater than the size of the map is impossible
     double impossible_cost = path_map_.obstacleCosts();
@@ -422,7 +412,7 @@ namespace bup_local_planner
     comp_traj = swap;
 
     //if the trajectory failed because the footprint hits something, we're still going to back up
-    if(best_traj->cost_ == -1.0)
+    if(int(best_traj->cost_) == -1)
       best_traj->cost_ = 1.0;
     return *best_traj;
   }
@@ -593,7 +583,7 @@ namespace bup_local_planner
   }
 
   Trajectory BotsAndUsPlanner::findBestPath(geometry_msgs::PoseStamped& global_vel,
-                                            geometry_msgs::PoseStamped& drive_velocities)
+                                            geometry_msgs::PoseStamped& drive_velocities, const bool &use_p2p)
   {
     if(!updateGlobalPose())
     {
@@ -612,7 +602,8 @@ namespace bup_local_planner
           pos, robot_footprint_, *costmap_, true);
 
     //mark cells within the initial footprint of the robot
-    for (unsigned int i = 0; i < footprint_list.size(); ++i) {
+    for (unsigned int i = 0; i < footprint_list.size(); ++i)
+    {
       path_map_(footprint_list[i].x, footprint_list[i].y).within_robot = true;
     }
 
@@ -622,8 +613,7 @@ namespace bup_local_planner
     ROS_DEBUG("Path/Goal distance computed");
 
     //rollout trajectories and find the minimum cost one
-    Trajectory best = createTrajectories(pos[0], pos[1], pos[2],
-                                         vel[0], vel[1], vel[2]);
+    Trajectory best = (use_p2p) ? straightTrajectory(pos, vel) : createTrajectories(pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]);
     ROS_DEBUG("Trajectories created");
     if(best.cost_ < 0)
     {
@@ -641,7 +631,7 @@ namespace bup_local_planner
       drive_velocities.pose.position.y = best.yv_;
       drive_velocities.pose.position.z = 0;
       tf2::Quaternion q;
-      q.setRPY(0, 0, best.thetav_);
+      q.setRPY(0, 0, ((use_p2p) ? 0.0 : best.thetav_));
       drive_velocities.pose.orientation = tf2::toMsg(q);
     }
     return best;
@@ -731,22 +721,18 @@ namespace bup_local_planner
     return false;
   }
 
-  bool BotsAndUsPlanner::driveToGoal(const geometry_msgs::PoseStamped& robot_vel, geometry_msgs::Twist& cmd_vel)
+  Trajectory BotsAndUsPlanner::straightTrajectory(const Eigen::Vector3d &robot_pos, const Eigen::Vector3d& robot_vel/*, geometry_msgs::Twist& cmd_vel*/)
   {
     updateGlobalPose();
-    cmd_vel.angular.z = 0.0;
-    cmd_vel.linear.y = 0.0;
-    double yaw = getYaw(global_pose_.pose.orientation);
-
-    //compute feasible velocity limits in robot space
+    //determine feasible velocity limits in robot space
     double min_vel_x = boost::get<double>(fetchData("min_vel_x"));
     double max_vel_x = boost::get<double>(fetchData("max_vel_x"));
     double acc_x = boost::get<double>(fetchData("acc_lim_x"));
     double sim_time = boost::get<double>(fetchData("sim_time"));
 
     //using v = u + at;
-    max_vel_x = std::max(std::min(max_vel_x, robot_vel.pose.position.x + acc_x * sim_time), boost::get<double>(fetchData("min_vel_x")));
-    min_vel_x = std::max(boost::get<double>(fetchData("min_vel_x")), robot_vel.pose.position.x - acc_x * sim_time);
+    max_vel_x = std::max(std::min(max_vel_x, robot_vel[0] + acc_x * sim_time), boost::get<double>(fetchData("min_vel_x")));
+    min_vel_x = std::max(boost::get<double>(fetchData("min_vel_x")), robot_vel[0] - acc_x * sim_time);
 
     int vx_samples = boost::get<int>(fetchData("vx_samples"));
     double dvx = (max_vel_x - min_vel_x) / (vx_samples - 1);
@@ -754,19 +740,34 @@ namespace bup_local_planner
     double vx_samp = min_vel_x;
     double vy_samp = 0.0;
 
+    //keep track of the best trajectory seen so far
+    Trajectory* best_traj = &traj_one;
+    best_traj->cost_ = -1.0;
+    Trajectory* comp_traj = &traj_two;
+    comp_traj->cost_ = -1.0;
+    Trajectory* swap = nullptr;
 
-    //we still want to lay down the footprint of the robot and check if the action is legal
-    bool valid_cmd = checkTrajectory(global_pose_.pose.position.x, global_pose_.pose.position.y, yaw,
-                                     robot_vel.pose.position.x, robot_vel.pose.position.y, 0.0,
-                                     vx_samp, 0.0, 0.0);
-    if(valid_cmd)
+    //any cell with a cost greater than the size of the map is impossible
+    double impossible_cost = path_map_.obstacleCosts();
+
+    //sample all x velocities
+    for(int i = 0; i < vx_samples; ++i)
     {
-      cmd_vel.linear.x = vx_samp;
-      return true;
-    }
+      generateTrajectory(robot_pos[0], robot_pos[1], robot_pos[2],
+                         robot_vel[0], robot_vel[1], 0.0,
+                         vx_samp, vy_samp, 0.0,
+                         acc_x, 0.0, 0.0, impossible_cost, *comp_traj);
 
-    cmd_vel.linear.x = 0.0;
-    return false;
+      //if the new trajectory is better... let's take it
+      if(comp_traj->cost_ >= 0 && (comp_traj->cost_ < best_traj->cost_ || best_traj->cost_ < 0))
+      {
+        swap = best_traj;
+        best_traj = comp_traj;
+        comp_traj = swap;
+      }
+      vx_samp += dvx;
+    }
+    return *best_traj;
   }
 
   bool BotsAndUsPlanner::selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan,

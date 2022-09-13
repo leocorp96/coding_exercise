@@ -139,7 +139,7 @@ namespace bup_local_planner
     * @return The selected path or trajectory
     */
     Trajectory findBestPath(geometry_msgs::PoseStamped& global_vel,
-                            geometry_msgs::PoseStamped& drive_velocities);
+                            geometry_msgs::PoseStamped& drive_velocities, const bool &use_p2p=true);
     /**
     * @brief  Rotates base to the goal orientation
     * @param  robot_vel The velocity of the robot
@@ -151,13 +151,6 @@ namespace bup_local_planner
     bool rotateToGoal(const geometry_msgs::PoseStamped& robot_vel,
                       double goal_th,
                       geometry_msgs::Twist& cmd_vel, const bool is_init=false);
-    /**
-    * @brief  Drives in a straight line to the goal
-    * @param  robot_vel The velocity of the robot
-    * @param  cmd_vel The velocity commands to be filled
-    * @return  True if a valid trajectory was found, false otherwise
-    */
-    bool driveToGoal(const geometry_msgs::PoseStamped& robot_vel, geometry_msgs::Twist& cmd_vel);
     /**
     * @brief  Selects the next goal point to traverse and updates the plan
     * @param  plan The current transformed plan to follow
@@ -217,6 +210,13 @@ namespace bup_local_planner
                             double vx_samp, double vy_samp, double vtheta_samp,
                             double acc_x, double acc_y, double acc_theta,
                             double impossible_cost, Trajectory& traj);
+    /**
+    * @brief  Drives in a straight line to the goal
+    * @param  robot_pos The position of the robot
+    * @param  robot_vel The velocities of the robot
+    * @return Returns the best trajectory
+    */
+    Trajectory straightTrajectory(const Eigen::Vector3d &robot_pos, const Eigen::Vector3d &robot_vel);
 
     /**
     * @brief  Checks the legality of the robot footprint at a position and orientation using the world model

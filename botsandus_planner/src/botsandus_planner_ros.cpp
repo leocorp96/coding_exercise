@@ -103,6 +103,12 @@ namespace bup_local_planner
       pn.param("prune_plan", bvar, true);
       robot_params_["prune_plan"] = bvar;
 
+      pn.param("dsample_dist", dvar, 0.25);
+      robot_params_["dsample_dist"] = dvar;
+      pn.param("use_p2p", bvar, true);
+      robot_params_["use_p2p"] = bvar;
+
+
       ros::NodeHandle gn;
       odom_sub_ = gn.subscribe<nav_msgs::Odometry>("odom", 1, boost::bind(&BotsAndUsPlannerROS::odomCB, this, _1));
 
@@ -161,7 +167,6 @@ namespace bup_local_planner
 
     if(allow_plan_update_)
     {
-      ROS_WARN("Set plan has been called !!!!!");
       //reset the global plan
       global_plan_.clear();
       global_plan_ = orig_global_plan;
@@ -173,9 +178,12 @@ namespace bup_local_planner
       has_next_point_ = false;
       fetch_local_goal_ = true;
 
-      //reduce plan resolution
-      bup_->downSamplePlan(global_plan_);
-      publishWayPoints(global_plan_, wp_plan_pub_);
+      //reduce plan resolution and publish waypoints
+      if(boost::get<bool>(bup_->fetchData("use_p2p")))
+      {
+        bup_->downSamplePlan(global_plan_);
+        publishWayPoints(global_plan_, wp_plan_pub_);
+      }
     }
     return true;
   }
@@ -295,15 +303,8 @@ namespace bup_local_planner
     //! if goal position not reached
     // update the plan in the main planner
     bup_->updatePlan(transformed_plan, false);
-    ROS_WARN_STREAM("Remaining Plan size: " << transformed_plan.size());
-    if(bup_->driveToGoal(robot_vel, cmd_vel))
-    {
-      ROS_WARN_STREAM_THROTTLE(1, "Driving to goal");
-    }
-    publishPlan(transformed_plan, global_plan_pub_);
-    return true;
     //compute what trajectory to drive along
-    Trajectory path = bup_->findBestPath(robot_vel, drive_cmds);
+    Trajectory path = bup_->findBestPath(robot_vel, drive_cmds, boost::get<bool>(bup_->fetchData("use_p2p")));
     //get drive commands
     cmd_vel.linear.x = drive_cmds.pose.position.x;
     cmd_vel.linear.y = drive_cmds.pose.position.y;
