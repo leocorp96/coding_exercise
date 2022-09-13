@@ -157,7 +157,7 @@ namespace bup_local_planner
       return false;
     }
 
-    if(allow_plan_update_)
+    //if(allow_plan_update_)
     {
       ROS_WARN("Set plan has been called !!!!!");
       //reset the global plan
@@ -166,6 +166,8 @@ namespace bup_local_planner
       //reduce plan resolution
       bup_->downSamplePlan(global_plan_);
       //clear flags
+      if(goal_reached_)
+        bup_->reset();
       goal_reached_ = false;
       allow_plan_update_ = false;
       publishWayPoints(global_plan_, wp_plan_pub_);
@@ -183,7 +185,6 @@ namespace bup_local_planner
 
     std::vector<geometry_msgs::PoseStamped> local_plan;
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
-    ROS_WARN("Transforming plan ...");
     //get the global plan in our frame
     if (!bup_->transformGlobalPlan(*tf_, global_plan_, transformed_plan))
     {

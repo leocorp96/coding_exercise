@@ -769,7 +769,7 @@ namespace bup_local_planner
     return false;
   }
 
-  bool BotsAndUsPlanner::selectGoalPoint(const std::vector<geometry_msgs::PoseStamped> &plan,
+  bool BotsAndUsPlanner::selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan,
                                          Eigen::Vector2d &goal_vec, double &goal_th)
   {
     if(!updateGlobalPose())
@@ -780,33 +780,51 @@ namespace bup_local_planner
     if(plan.empty())
       return false;
     std::size_t idx;
-    for(idx = prev_idx_; idx < plan.size(); ++idx)
+    for(idx = 0; idx < plan.size(); idx++)
     {
       goal_vec[0] = plan[idx].pose.position.x;
       goal_vec[1] = plan[idx].pose.position.y;
-
-      //break if chosen point not reached
-      if(!isGoalPositionReached(goal_vec))
-        break;
+      goal_th = getYaw(plan[idx].pose.orientation);
+      if(!checkVisited(goal_vec) || visited_pts_.empty())
+      {
+        //break if chosen point not reached
+        if(!isGoalPositionReached(goal_vec))
+        {
+          visited_pts_.push_back(goal_vec);
+          //update local goal
+          final_goal_x_ = goal_vec.x();
+          final_goal_y_ = goal_vec.y();
+          //check if this is the last point in plan
+          if(idx == (plan.size() - 1))
+          {
+            ROS_WARN("Last point!!");
+            return false;
+          }
+          break;
+        }
+      }
     }
-    prev_idx_ = idx;
+    //plan.erase(plan.begin() + uint(idx));
 
-    //set orientation
-    goal_th = getYaw(plan[idx].pose.orientation);
-    ROS_WARN_STREAM("Point Index: " << prev_idx_ << " |Size: " << plan.size());
-    ROS_WARN_STREAM("Cur goal: " << goal_vec.x() << " | " << goal_vec.y() <<
+    ROS_WARN_STREAM("Goal @: " << goal_vec.x() << " | " << goal_vec.y() <<
                     " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);
-    //update local goal
-    final_goal_x_ = goal_vec.x();
-    final_goal_y_ = goal_vec.y();
-
-    //check if this is the last point in plan
-    if(idx == (plan.size() - 1))
-    {
-      ROS_WARN("Last point!!");
-      return false;
-    }
     return true;
+  }
+
+  void BotsAndUsPlanner::reset()
+  {
+    visited_pts_.clear();
+  }
+
+  bool BotsAndUsPlanner::checkVisited(const Eigen::Vector2d &pts)
+  {
+    double xy_tolerance = boost::get<double>(fetchData("xy_tolerance"));
+    for(std::size_t t = 0; t < visited_pts_.size(); t++)
+    {
+      if(computeEuclidean(pts, visited_pts_[t]) <= xy_tolerance)
+        return true;
+    }
+    return false;
   }
 
 };

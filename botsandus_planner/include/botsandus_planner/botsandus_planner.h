@@ -159,19 +159,23 @@ namespace bup_local_planner
     */
     bool driveToGoal(const geometry_msgs::PoseStamped& robot_vel, geometry_msgs::Twist& cmd_vel);
     /**
-    * @brief  Selects the next goal point to traverse
+    * @brief  Selects the next goal point to traverse and updates the plan
     * @param  plan The current transformed plan to follow
     * @param  goal_vec The goal x and y coordinates to go to
     * @param  goal_th The orientation of goal
     * @return  True if trajectory has next point else, False
     */
-    bool selectGoalPoint(const std::vector<geometry_msgs::PoseStamped> &plan, Eigen::Vector2d &goal_vec, double &goal_th);
+    bool selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan, Eigen::Vector2d &goal_vec, double &goal_th);
 
     /**
     * @brief  Reduces the global plan resolution
     * @param  plan The current plan to downsample
     */
     void downSamplePlan(std::vector<geometry_msgs::PoseStamped> &plan);
+    /**
+    * @brief  Clears the visited points vector
+    */
+    void reset();
 
 
   private:
@@ -314,6 +318,11 @@ namespace bup_local_planner
     double scoreTrajectory(double x, double y, double theta,
                            double vx, double vy, double vtheta,
                            double vx_samp, double vy_samp, double vtheta_samp);
+    /**
+    * @brief  Checks if point has been visited previously
+    * @param  pts current point to check
+    */
+    bool checkVisited(const Eigen::Vector2d &pts);
 
 
     costmap_2d::Costmap2DROS *costmap_ros_;
@@ -339,7 +348,7 @@ namespace bup_local_planner
     WorldModel *world_model_; ///< @brief The world model that the controller uses for collision detection
     boost::mutex configuration_mutex_;
     boost::shared_ptr<LineIterator> linecost_;
-    std::size_t prev_idx_;
+    std::vector<Eigen::Vector2d> visited_pts_; ///< @brief Keeps track of visited local visited points
   };
 };
 
