@@ -157,7 +157,7 @@ namespace bup_local_planner
       return false;
     }
 
-    //if(allow_plan_update_)
+    if(allow_plan_update_)
     {
       ROS_WARN("Set plan has been called !!!!!");
       //reset the global plan

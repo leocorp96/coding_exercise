@@ -802,6 +802,8 @@ namespace bup_local_planner
           }
           break;
         }
+        else
+          visited_pts_.push_back(goal_vec);
       }
     }
     //plan.erase(plan.begin() + uint(idx));
