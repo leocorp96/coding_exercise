@@ -131,7 +131,7 @@ namespace bup_local_planner
     * @brief  Update the plan that the controller is following
     * @param new_plan A new plan for the controller to follow
     */
-    void updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan);
+    void updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan, const bool &set_goal=true);
     /**
     * @brief  Given the current position, orientation, and velocity of the robot, return a trajectory to follow
     * @param global_vel The current velocity of the robot in world space
@@ -145,19 +145,34 @@ namespace bup_local_planner
     * @param  robot_vel The velocity of the robot
     * @param  goal_th The desired theta value for the goal
     * @param  cmd_vel The velocity commands to be filled
+    * @param  is_init If use in initial rotation run, resets the path and goal map grids
     * @return  True if a valid trajectory was found, false otherwise
     */
     bool rotateToGoal(const geometry_msgs::PoseStamped& robot_vel,
                       double goal_th,
                       geometry_msgs::Twist& cmd_vel, const bool is_init=false);
     /**
+    * @brief  Drives in a straight line to the goal
+    * @param  robot_vel The velocity of the robot
+    * @param  cmd_vel The velocity commands to be filled
+    * @return  True if a valid trajectory was found, false otherwise
+    */
+    bool driveToGoal(const geometry_msgs::PoseStamped& robot_vel, geometry_msgs::Twist& cmd_vel);
+    /**
     * @brief  Selects the next goal point to traverse
-    * @param  goal_x The goal-x coordinate to go to
-    * @param  goal_y The goal-y coordinate to go to
+    * @param  plan The current transformed plan to follow
+    * @param  goal_vec The goal x and y coordinates to go to
     * @param  goal_th The orientation of goal
     * @return  True if trajectory has next point else, False
     */
-    bool selectGoalPoint(double &goal_x, double &goal_y, double &goal_th);
+    bool selectGoalPoint(const std::vector<geometry_msgs::PoseStamped> &plan, Eigen::Vector2d &goal_vec, double &goal_th);
+
+    /**
+    * @brief  Reduces the global plan resolution
+    * @param  plan The current plan to downsample
+    */
+    void downSamplePlan(std::vector<geometry_msgs::PoseStamped> &plan);
+
 
   private:
     /**
@@ -324,6 +339,7 @@ namespace bup_local_planner
     WorldModel *world_model_; ///< @brief The world model that the controller uses for collision detection
     boost::mutex configuration_mutex_;
     boost::shared_ptr<LineIterator> linecost_;
+    std::size_t prev_idx_;
   };
 };
 

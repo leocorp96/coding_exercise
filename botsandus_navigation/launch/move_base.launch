@@ -19,7 +19,7 @@
     <remap from="odom" to="$(arg odom_topic)"/>
     <param name="DWAPlannerROS/min_vel_x" value="0.0" if="$(arg move_forward_only)" />
   </node-->
-  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="xterm -e gdb -ex run --args">
     <param name="base_local_planner" value="bup_local_planner/BotsAndUsPlannerROS" />
     <rosparam file="$(find botsandus_navigation)/config/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find botsandus_navigation)/config/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />

@@ -20,6 +20,51 @@ namespace bup_local_planner
     return true;
   }
 
+  void BotsAndUsPlanner::downSamplePlan(std::vector<geometry_msgs::PoseStamped> &plan)
+  {
+    if (plan.empty())
+    {
+      ROS_ERROR("Received plan with zero length");
+      return;
+    }
+    std::vector<geometry_msgs::PoseStamped> res;
+    double ds_dist = 0.25; //25cm
+    ROS_WARN_STREAM_THROTTLE(1, "Pre-Sample Length: " << computeEuclidean(
+                      Eigen::Vector2d(plan[0].pose.position.x, plan[0].pose.position.y),
+                      Eigen::Vector2d(plan.back().pose.position.x, plan.back().pose.position.y))
+        << " Size: " << plan.size());
+    res.push_back(plan[0]); //add first point
+    ROS_WARN("Downsample");
+    //ROS_WARN_STREAM("First point: " << plan[0].pose.position.x << " | " << plan[0].pose.position.y);
+    for(std::size_t t = 1; t < plan.size(); t++)
+    {
+      double prev_dist = computeEuclidean(
+            Eigen::Vector2d(plan[t].pose.position.x, plan[t].pose.position.y),
+            Eigen::Vector2d(res.back().pose.position.x, res.back().pose.position.y));
+      //check if last point in plan
+      if((t == (plan.size()-1)) && (prev_dist < ds_dist))
+      {
+        //if(res.size() > 1)
+        res.pop_back();
+        res.push_back(plan[t]);
+        /*ROS_WARN_STREAM("Cur goal: " << plan[t].pose.position.x << " | " << plan[t].pose.position.y <<
+                        " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);*/
+        break;
+      }
+
+      if(prev_dist >= ds_dist)
+      {//add point if greater/equal to ds_dist
+        res.push_back(plan[t]);
+      }
+    }
+    plan = res;
+    ROS_WARN_STREAM_THROTTLE(1, "Post-Sample Length: " << computeEuclidean(
+                      Eigen::Vector2d(plan[0].pose.position.x, plan[0].pose.position.y),
+                      Eigen::Vector2d(plan.back().pose.position.x, plan.back().pose.position.y))
+        << " Size: " << plan.size());
+
+  }
+
   bool BotsAndUsPlanner::transformGlobalPlan(const tf2_ros::Buffer& tf,
       const std::vector<geometry_msgs::PoseStamped>& global_plan,
       std::vector<geometry_msgs::PoseStamped>& transformed_plan)
@@ -66,7 +111,6 @@ namespace bup_local_planner
       }
 
       geometry_msgs::PoseStamped newer_pose;
-
       //now we'll transform until points are outside of our distance threshold
       while(i < global_plan.size() && sq_dist <= sq_dist_threshold) {
         const geometry_msgs::PoseStamped& pose = global_plan[i];
@@ -96,7 +140,6 @@ namespace bup_local_planner
 
       return false;
     }
-
     return true;
   }
 
@@ -112,7 +155,8 @@ namespace bup_local_planner
         distance_sq = computeEuclidean(Eigen::Vector2d(global_pose_.pose.position.x, global_pose_.pose.position.y),
                                        Eigen::Vector2d(w.pose.position.x, w.pose.position.y));
       if(distance_sq < 1){
-        ROS_DEBUG("Nearest waypoint to <%f, %f> is <%f, %f>\n", global_pose_.pose.position.x, global_pose_.pose.position.y, w.pose.position.x, w.pose.position.y);
+        ROS_DEBUG("Nearest waypoint to <%f, %f> is <%f, %f>\n", global_pose_.pose.position.x, global_pose_.pose.position.y,
+                  w.pose.position.x, w.pose.position.y);
         break;
       }
       it = plan.erase(it);
@@ -184,20 +228,24 @@ namespace bup_local_planner
     return false;
   }
 
-  void BotsAndUsPlanner::updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan)
+  void BotsAndUsPlanner::updatePlan(const std::vector<geometry_msgs::PoseStamped>& new_plan, const bool &set_goal)
   {
     global_plan_.resize(new_plan.size());
     for(unsigned int i = 0; i < new_plan.size(); ++i)
       global_plan_[i] = new_plan[i];
 
-    if( global_plan_.size() > 0 ){
-      geometry_msgs::PoseStamped& final_goal_pose = global_plan_[ global_plan_.size() - 1 ];
-      final_goal_x_ = final_goal_pose.pose.position.x;
-      final_goal_y_ = final_goal_pose.pose.position.y;
+    if(global_plan_.size() > 0)
+    {
+      if(set_goal)
+      {
+        geometry_msgs::PoseStamped& final_goal_pose = global_plan_[ global_plan_.size() - 1 ];
+        final_goal_x_ = final_goal_pose.pose.position.x;
+        final_goal_y_ = final_goal_pose.pose.position.y;
+      }
       final_goal_position_valid_ = true;
-    } else {
-      final_goal_position_valid_ = false;
     }
+    else
+      final_goal_position_valid_ = false;
   }
 
   Trajectory BotsAndUsPlanner::createTrajectories(double x, double y, double theta, double vx, double vy, double vtheta)
@@ -488,8 +536,7 @@ namespace bup_local_planner
       if(boost::get<bool>(fetchData("simp_attractor")))
       {
         goal_dist = computeEuclidean(Eigen::Vector2d(x_i, y_i),
-                                     Eigen::Vector2d(global_plan_[global_plan_.size() -1].pose.position.x,
-                                                     global_plan_[global_plan_.size() -1].pose.position.y));
+                                     Eigen::Vector2d(final_goal_x_, final_goal_x_));
       }
       else
       {
@@ -545,7 +592,8 @@ namespace bup_local_planner
     traj.cost_ = cost;
   }
 
-  Trajectory BotsAndUsPlanner::findBestPath(geometry_msgs::PoseStamped& global_vel, geometry_msgs::PoseStamped& drive_velocities)
+  Trajectory BotsAndUsPlanner::findBestPath(geometry_msgs::PoseStamped& global_vel,
+                                            geometry_msgs::PoseStamped& drive_velocities)
   {
     if(!updateGlobalPose())
     {
@@ -577,7 +625,6 @@ namespace bup_local_planner
     Trajectory best = createTrajectories(pos[0], pos[1], pos[2],
                                          vel[0], vel[1], vel[2]);
     ROS_DEBUG("Trajectories created");
-
     if(best.cost_ < 0)
     {
       drive_velocities.pose.position.x = 0;
@@ -644,7 +691,7 @@ namespace bup_local_planner
 
     double yaw = getYaw(global_pose_.pose.orientation);
     double vel_yaw = getYaw(robot_vel.pose.orientation);
-    //ROS_WARN_STREAM("Goal Yaw: " << goal_th << " Robot Yaw: " << yaw);
+    ROS_WARN_STREAM("Goal Yaw: " << goal_th << " Robot Yaw: " << yaw);
     cmd_vel.linear.x = 0;
     cmd_vel.linear.y = 0;
     double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
@@ -673,7 +720,7 @@ namespace bup_local_planner
     bool valid_cmd = checkTrajectory(global_pose_.pose.position.x, global_pose_.pose.position.y, yaw,
                                      robot_vel.pose.position.x, robot_vel.pose.position.y, vel_yaw,
                                      0.0, 0.0, v_theta_samp);
-    ROS_DEBUG("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
+    ROS_WARN("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
     if(valid_cmd)
     {
       cmd_vel.angular.z = v_theta_samp;
@@ -684,17 +731,82 @@ namespace bup_local_planner
     return false;
   }
 
-  bool BotsAndUsPlanner::selectGoalPoint(double &goal_x, double &goal_y, double &goal_th)
+  bool BotsAndUsPlanner::driveToGoal(const geometry_msgs::PoseStamped& robot_vel, geometry_msgs::Twist& cmd_vel)
+  {
+    updateGlobalPose();
+    cmd_vel.angular.z = 0.0;
+    cmd_vel.linear.y = 0.0;
+    double yaw = getYaw(global_pose_.pose.orientation);
+
+    //compute feasible velocity limits in robot space
+    double min_vel_x = boost::get<double>(fetchData("min_vel_x"));
+    double max_vel_x = boost::get<double>(fetchData("max_vel_x"));
+    double acc_x = boost::get<double>(fetchData("acc_lim_x"));
+    double sim_time = boost::get<double>(fetchData("sim_time"));
+
+    //using v = u + at;
+    max_vel_x = std::max(std::min(max_vel_x, robot_vel.pose.position.x + acc_x * sim_time), boost::get<double>(fetchData("min_vel_x")));
+    min_vel_x = std::max(boost::get<double>(fetchData("min_vel_x")), robot_vel.pose.position.x - acc_x * sim_time);
+
+    int vx_samples = boost::get<int>(fetchData("vx_samples"));
+    double dvx = (max_vel_x - min_vel_x) / (vx_samples - 1);
+
+    double vx_samp = min_vel_x;
+    double vy_samp = 0.0;
+
+
+    //we still want to lay down the footprint of the robot and check if the action is legal
+    bool valid_cmd = checkTrajectory(global_pose_.pose.position.x, global_pose_.pose.position.y, yaw,
+                                     robot_vel.pose.position.x, robot_vel.pose.position.y, 0.0,
+                                     vx_samp, 0.0, 0.0);
+    if(valid_cmd)
+    {
+      cmd_vel.linear.x = vx_samp;
+      return true;
+    }
+
+    cmd_vel.linear.x = 0.0;
+    return false;
+  }
+
+  bool BotsAndUsPlanner::selectGoalPoint(const std::vector<geometry_msgs::PoseStamped> &plan,
+                                         Eigen::Vector2d &goal_vec, double &goal_th)
   {
     if(!updateGlobalPose())
     {
       ROS_ERROR("Unable to fetch robot pose from costmap!");
       return false;
     }
+    if(plan.empty())
+      return false;
+    std::size_t idx;
+    for(idx = prev_idx_; idx < plan.size(); ++idx)
+    {
+      goal_vec[0] = plan[idx].pose.position.x;
+      goal_vec[1] = plan[idx].pose.position.y;
 
+      //break if chosen point not reached
+      if(!isGoalPositionReached(goal_vec))
+        break;
+    }
+    prev_idx_ = idx;
 
+    //set orientation
+    goal_th = getYaw(plan[idx].pose.orientation);
+    ROS_WARN_STREAM("Point Index: " << prev_idx_ << " |Size: " << plan.size());
+    ROS_WARN_STREAM("Cur goal: " << goal_vec.x() << " | " << goal_vec.y() <<
+                    " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);
+    //update local goal
+    final_goal_x_ = goal_vec.x();
+    final_goal_y_ = goal_vec.y();
+
+    //check if this is the last point in plan
+    if(idx == (plan.size() - 1))
+    {
+      ROS_WARN("Last point!!");
+      return false;
+    }
     return true;
   }
-
 
 };

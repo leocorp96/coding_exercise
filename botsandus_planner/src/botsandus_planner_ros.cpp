@@ -5,15 +5,11 @@ PLUGINLIB_EXPORT_CLASS(bup_local_planner::BotsAndUsPlannerROS, nav_core::BaseLoc
 
 namespace bup_local_planner
 {
-  BotsAndUsPlannerROS::BotsAndUsPlannerROS(): costmap_ros_(NULL), tf_(NULL), initialized_(false),
-                                              is_initial_rotation_to_goal_completed_(false),
-                                              is_final_rotation_to_goal_completed_(false),
-                                              goal_reached_(false), has_next_point_(false)
+  BotsAndUsPlannerROS::BotsAndUsPlannerROS(): costmap_ros_(NULL), tf_(NULL)
   {}
   BotsAndUsPlannerROS::BotsAndUsPlannerROS(std::string name, tf2_ros::Buffer *tf,
                                      costmap_2d::Costmap2DROS *costmap_ros):
-    costmap_ros_(NULL), tf_(NULL), initialized_(false), is_initial_rotation_to_goal_completed_(false),
-    is_final_rotation_to_goal_completed_(false), goal_reached_(false), has_next_point_(false)
+    costmap_ros_(NULL), tf_(NULL)
   {
     initialize(name, tf, costmap_ros);
   }
@@ -31,11 +27,15 @@ namespace bup_local_planner
     {
       tf_ = tf;
       costmap_ros_ = costmap_ros;
+      is_initial_rotation_to_goal_completed_ =
+      is_final_rotation_to_goal_completed_ = goal_reached_ = has_next_point_ = false;
+      allow_plan_update_ = fetch_local_goal_ = true;
 
       //get config data from parameter server and setup publishers/subscribers
       ros::NodeHandle pn("~/" + name);
       global_plan_pub_ = pn.advertise<nav_msgs::Path>("global_plan", 1);
       local_plan_pub_ = pn.advertise<nav_msgs::Path>("local_plan", 1);
+      wp_plan_pub_ = pn.advertise<visualization_msgs::MarkerArray>("waypoints", 1, true);
 
       double dvar = 0.0; bool bvar = false; int ivar = 0;
       pn.param("max_rot_vel", dvar, 0.8);
@@ -157,12 +157,19 @@ namespace bup_local_planner
       return false;
     }
 
-    //reset the global plan
-    global_plan_.clear();
-    global_plan_ = orig_global_plan;
-
-    //clear flags
-    goal_reached_ = false;
+    if(allow_plan_update_)
+    {
+      ROS_WARN("Set plan has been called !!!!!");
+      //reset the global plan
+      global_plan_.clear();
+      global_plan_ = orig_global_plan;
+      //reduce plan resolution
+      bup_->downSamplePlan(global_plan_);
+      //clear flags
+      goal_reached_ = false;
+      allow_plan_update_ = false;
+      publishWayPoints(global_plan_, wp_plan_pub_);
+    }
     return true;
   }
 
@@ -176,6 +183,7 @@ namespace bup_local_planner
 
     std::vector<geometry_msgs::PoseStamped> local_plan;
     std::vector<geometry_msgs::PoseStamped> transformed_plan;
+    ROS_WARN("Transforming plan ...");
     //get the global plan in our frame
     if (!bup_->transformGlobalPlan(*tf_, global_plan_, transformed_plan))
     {
@@ -184,8 +192,8 @@ namespace bup_local_planner
     }
 
     //now we'll prune the plan based on the position of the robot
-    if(boost::get<bool>(bup_->fetchData("prune_plan")))
-      bup_->prunePlan(transformed_plan, global_plan_);
+    /*if(boost::get<bool>(bup_->fetchData("prune_plan")))
+      bup_->prunePlan(transformed_plan, global_plan_);*/
 
     geometry_msgs::PoseStamped drive_cmds;
     drive_cmds.header.frame_id = bup_->getBaseFrame();
@@ -197,24 +205,28 @@ namespace bup_local_planner
     if(transformed_plan.empty())
       return false;
 
-    //set the first point as goal and set "has_next" flag
-    const geometry_msgs::PoseStamped& goal_point = transformed_plan.front();
-    //we assume the global goal is the last point in the global plan
-    double goal_x = goal_point.pose.position.x;
-    double goal_y = goal_point.pose.position.y;
-    double goal_th = getYaw(goal_point.pose.orientation);
-    //has_next_point_ = bup_->selectGoalPoint(goal_x, goal_y, goal_th);
+    //Select the immediate goal point and set "has_next" flag
+    if(fetch_local_goal_ && !goal_reached_)
+    {
+      has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_);
+      fetch_local_goal_ = false;
+    }
 
     //!initial rotate to goal
     if(!is_initial_rotation_to_goal_completed_)
     {//perform initial base rotation to goal orientation
+      ROS_WARN("Performing initial base-to-goal rotation");
       geometry_msgs::PoseStamped robot_pose = bup_->getGlobalPose();
-      double goal_dir = atan2((goal_y - robot_pose.pose.position.y),
-                              (goal_x - robot_pose.pose.position.x));
-      bup_->updatePlan(transformed_plan);
+      double goal_dir = atan2((goal_vec_.y() - robot_pose.pose.position.y),
+                              (goal_vec_.x() - robot_pose.pose.position.x));
+
+      bup_->updatePlan(transformed_plan, false);
       bup_->rotateToGoal(robot_vel, goal_dir, cmd_vel, true);
       if(bup_->isGoalOrientationReached(goal_dir))
+      {
         is_initial_rotation_to_goal_completed_ = true;
+        cmd_vel.angular.z = 0.0;
+      }
 
       //publish an empty plan because we've reached our goal position
       publishPlan(transformed_plan, global_plan_pub_);
@@ -223,24 +235,30 @@ namespace bup_local_planner
       return true;
     }
 
-    if(bup_->isGoalPositionReached(Eigen::Vector2d(goal_x, goal_y)))
+    if(bup_->isGoalPositionReached(goal_vec_))
     {
-      if(bup_->isGoalOrientationReached(goal_th))
+      if(has_next_point_)
       {
-        /*if(has_next_point_)
-        {
-          is_initial_rotation_to_goal_completed_ = false;
-          is_final_rotation_to_goal_completed_ = false;
-        }
-        else*/
-        {
-          cmd_vel.linear.x = 0.0;
-          cmd_vel.linear.y = 0.0;
-          cmd_vel.angular.z = 0.0;
-          is_initial_rotation_to_goal_completed_ = false;
-          is_final_rotation_to_goal_completed_ = false;
-          goal_reached_ = true;
-        }
+        cmd_vel.linear.x = 0.0;
+        cmd_vel.linear.y = 0.0;
+        is_initial_rotation_to_goal_completed_ = false;
+        fetch_local_goal_ = true;
+        ROS_WARN_STREAM("Going to next point");
+        return true;
+      }
+      ROS_WARN("Final Goal Point reached!");
+
+      //final goal orientation correction
+      if(bup_->isGoalOrientationReached(goal_th_))
+      {
+        ROS_WARN_STREAM("EOF Trajectory!");
+        cmd_vel.linear.x = 0.0;
+        cmd_vel.linear.y = 0.0;
+        cmd_vel.angular.z = 0.0;
+        is_initial_rotation_to_goal_completed_ = false;
+        is_final_rotation_to_goal_completed_ = false;
+        allow_plan_update_ = true;
+        goal_reached_ = true;
       }
       else
       {//! if robot is in goal xy position, rotate inplace to match goal orientation and stop
@@ -257,8 +275,8 @@ namespace bup_local_planner
         }
         else
         {// perform final base rotation to goal orientation
-          is_final_rotation_to_goal_completed_ = !bup_->rotateToGoal(robot_vel, goal_th, cmd_vel);
-          ROS_INFO("Performing final base-to-goal rotation");
+          is_final_rotation_to_goal_completed_ = !bup_->rotateToGoal(robot_vel, goal_th_, cmd_vel);
+          ROS_WARN("Performing final base-to-goal rotation");
         }
       }
 
@@ -270,7 +288,14 @@ namespace bup_local_planner
     }
     //! if goal position not reached
     // update the plan in the main planner
-    bup_->updatePlan(transformed_plan);
+    bup_->updatePlan(transformed_plan, false);
+    ROS_WARN_STREAM("Remaining Plan size: " << transformed_plan.size());
+    if(bup_->driveToGoal(robot_vel, cmd_vel))
+    {
+      ROS_WARN_STREAM_THROTTLE(1, "Driving to goal");
+    }
+    publishPlan(transformed_plan, global_plan_pub_);
+    return true;
     //compute what trajectory to drive along
     Trajectory path = bup_->findBestPath(robot_vel, drive_cmds);
     //get drive commands
@@ -325,6 +350,36 @@ namespace bup_local_planner
     for(unsigned int i=0; i < path.size(); i++)
       gui_path.poses[i] = path[i];
     pub.publish(gui_path);
+  }
+
+  void BotsAndUsPlannerROS::publishWayPoints(const std::vector<geometry_msgs::PoseStamped>& path, const ros::Publisher& pub)
+  {
+    //given an empty path we won't do anything
+    if(path.empty())
+      return;
+    visualization_msgs::MarkerArray m_arr;
+    std_msgs::ColorRGBA color;
+    color.a = 0.7;
+    color.b = 0.0;
+    color.g = 1.0;
+    color.r = 0.0;
+    for(std::size_t i=0; i < path.size(); i++)
+    {
+      visualization_msgs::Marker m;
+      m.header.frame_id = bup_->getGlobalFrame();
+      m.header.stamp = ros::Time::now();
+      m.id = int(i);
+      m.action = visualization_msgs::Marker::ADD;
+      m.type = visualization_msgs::Marker::SPHERE;
+      m.pose = path[i].pose;
+      m.scale.x = 0.1;
+      m.scale.y = 0.1;
+      m.scale.z = 0.1;
+      m.color = color;
+      m_arr.markers.push_back(m);
+    }
+
+    pub.publish(m_arr);
   }
 
   bool BotsAndUsPlannerROS::isGoalReached()

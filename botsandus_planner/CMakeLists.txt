@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   message_runtime
   tf2_geometry_msgs
+  visualization_msgs
 )
 
 find_package(Boost REQUIRED
@@ -61,6 +62,7 @@ catkin_package(
     nav_core 
     roscpp
     pluginlib
+    visualization_msgs
   DEPENDS system_lib
 )
 

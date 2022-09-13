@@ -22,7 +22,14 @@ namespace bup_local_planner
   static double getYaw(const geometry_msgs::Quaternion &q_msg)
   {
     tf2::Quaternion q_tf;
-    tf2::convert(q_msg, q_tf);
+    try
+    {
+      tf2::convert(q_msg, q_tf);
+    } catch (tf2::TransformException &tfex)
+    {
+      std::cout << "Exception in getYaw: " << tfex.what();
+      tf2::fromMsg(q_msg, q_tf);
+    }
     tf2::Matrix3x3 m(q_tf);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);

@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /Map1
       Splitter Ratio: 0.5
     Tree Height: 509
   - Class: rviz/Selection
@@ -220,6 +221,14 @@ Visualization Manager:
       Queue Size: 10
       Topic: /move_base/local_costmap/footprint
       Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /move_base/BotsAndUsPlannerROS/waypoints
+      Name: Waypoints
+      Namespaces:
+        {}
+      Queue Size: 10
       Value: true
   Enabled: true
   Global Options:

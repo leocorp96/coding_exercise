@@ -4,6 +4,9 @@
 #include <ros/ros.h>
 #include <nav_core/base_local_planner.h>
 #include <botsandus_planner/botsandus_planner.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <visualization_msgs/Marker.h>
+#include <geometry_msgs/Vector3.h>
 
 namespace bup_local_planner
 {
@@ -49,11 +52,20 @@ namespace bup_local_planner
     * @param  r,g,b,a The color and alpha value to use when publishing
     */
     void publishPlan(const std::vector<geometry_msgs::PoseStamped>& path, const ros::Publisher& pub);
+    /**
+    * @brief  Publish a waypoints for visualization purposes
+    * @param  path The plan to publish
+    * @param  pub The published to use
+    * @param  r,g,b,a The color and alpha value to use when publishing
+    */
+    void publishWayPoints(const std::vector<geometry_msgs::PoseStamped>& path, const ros::Publisher& pub);
 
   private:
-    bool initialized_, has_next_point_,
+    bool initialized_, has_next_point_, allow_plan_update_,
     is_initial_rotation_to_goal_completed_, is_final_rotation_to_goal_completed_,
-    goal_reached_, prune_plan_;
+    goal_reached_, prune_plan_, fetch_local_goal_;
+    Eigen::Vector2d goal_vec_;
+    double goal_th_;
     RobotParams robot_params_;
     boost::shared_ptr<BotsAndUsPlanner> bup_;
     costmap_2d::Costmap2DROS *costmap_ros_;
@@ -62,7 +74,7 @@ namespace bup_local_planner
     boost::mutex odom_mutex_;
     nav_msgs::Odometry base_odom_;
     ros::Subscriber odom_sub_;
-    ros::Publisher global_plan_pub_, local_plan_pub_;
+    ros::Publisher global_plan_pub_, local_plan_pub_, wp_plan_pub_;
 
   };
 };
