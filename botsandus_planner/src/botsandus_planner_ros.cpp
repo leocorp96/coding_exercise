@@ -170,6 +170,7 @@ namespace bup_local_planner
       return false;
     }
 
+    //case 1: Using p2p and a static path
     if(use_static_ && allow_plan_update_)
     {//! using static plan option
       //reset the global plan
@@ -192,6 +193,8 @@ namespace bup_local_planner
         publishWayPoints(global_plan_, wp_plan_pub_);
       }
     }
+
+    //case 2: Using p2p and a dynamic path
     if(!use_static_ && allow_plan_update_)
     {//! continuous global plan update option
       //reset the global plan
@@ -212,6 +215,18 @@ namespace bup_local_planner
         bup_->downSamplePlan(global_plan_);
         publishWayPoints(global_plan_, wp_plan_pub_);
       }
+    }
+
+    //case 3: Not using p2p and a dynamic path (normal)
+    if(!use_static_ && !use_p2p_)
+    {//! continuous global plan update option
+      //reset the global plan
+      global_plan_.clear();
+      global_plan_ = orig_global_plan;
+      bup_->reset();
+
+      //clear flags
+      goal_reached_ = false;
     }
     return true;
   }
