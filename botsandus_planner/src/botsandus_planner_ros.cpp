@@ -36,6 +36,7 @@ namespace bup_local_planner
       global_plan_pub_ = pn.advertise<nav_msgs::Path>("global_plan", 1);
       local_plan_pub_ = pn.advertise<nav_msgs::Path>("local_plan", 1);
       wp_plan_pub_ = pn.advertise<visualization_msgs::MarkerArray>("waypoints", 1, true);
+      cur_goal_pub_ = pn.advertise<geometry_msgs::Pose2D>("current_goal", 1);
 
       double dvar = 0.0; bool bvar = false; int ivar = 0;
       pn.param("max_rot_vel", dvar, 0.8);
@@ -205,8 +206,8 @@ namespace bup_local_planner
       //reduce plan resolution and publish waypoints if using P2P navigation
       if(use_p2p_)
       {
-        //has_next_point_ = false;
-        //fetch_local_goal_ = true;
+        has_next_point_ = false;
+        fetch_local_goal_ = true;
         bup_->downSamplePlan(global_plan_);
         publishWayPoints(global_plan_, wp_plan_pub_);
       }
@@ -249,6 +250,11 @@ namespace bup_local_planner
     if(use_p2p_ && fetch_local_goal_ && !goal_reached_)
     {
       has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_);
+      geometry_msgs::Pose2D cur_goal_msg;
+      cur_goal_msg.x = goal_vec_.x();
+      cur_goal_msg.y = goal_vec_.y();
+      cur_goal_msg.theta = goal_th_;
+      cur_goal_pub_.publish(cur_goal_msg);
       fetch_local_goal_ = false;
     }
 

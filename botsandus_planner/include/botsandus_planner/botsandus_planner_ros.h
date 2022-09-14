@@ -7,6 +7,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Pose2D.h>
 
 namespace bup_local_planner
 {
@@ -74,7 +75,7 @@ namespace bup_local_planner
     boost::mutex odom_mutex_;
     nav_msgs::Odometry base_odom_;
     ros::Subscriber odom_sub_;
-    ros::Publisher global_plan_pub_, local_plan_pub_, wp_plan_pub_;
+    ros::Publisher global_plan_pub_, local_plan_pub_, wp_plan_pub_, cur_goal_pub_;
 
   };
 };
