@@ -7,7 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /Map1
-      Splitter Ratio: 0.5
+      Splitter Ratio: 0.7735294103622437
     Tree Height: 509
   - Class: rviz/Selection
     Name: Selection
@@ -227,9 +227,51 @@ Visualization Manager:
       Marker Topic: /move_base/BotsAndUsPlannerROS/waypoints
       Name: Waypoints
       Namespaces:
-        {}
+        "": true
       Queue Size: 10
       Value: true
+    - Class: jsk_rviz_plugin/PieChart
+      Enabled: true
+      Name: Nav-Stats
+      Topic: /path_accuracy
+      Value: true
+      auto color change: true
+      background color: 0; 0; 0
+      backround alpha: 0
+      clockwise rotate direction: true
+      foreground alpha: 0.699999988079071
+      foreground alpha 2: 0.4000000059604645
+      foreground color: 25; 255; 240
+      left: 814
+      max color: 255; 0; 0
+      max color change threthold: 0
+      max value: 3.140000104904175
+      med color: 245; 121; 0
+      med color change threthold: 0
+      min value: -3.140000104904175
+      show caption: true
+      size: 128
+      text size: 14
+      top: 63
+    - Align Bottom: false
+      Background Alpha: 0.800000011920929
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/String
+      Enabled: true
+      Foreground Alpha: 0.800000011920929
+      Foreground Color: 25; 255; 240
+      Name: Status
+      Overtake Color Properties: false
+      Overtake Position Properties: true
+      Topic: /robot_status
+      Value: true
+      font: DejaVu Sans Mono
+      height: 80
+      left: 815
+      line width: 2
+      text size: 12
+      top: 220
+      width: 128
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -254,6 +296,7 @@ Visualization Manager:
     - Class: rviz/PublishPoint
       Single click: true
       Topic: /clicked_point
+    - Class: jsk_rviz_plugin/OverlayPicker
   Value: true
   Views:
     Current:
@@ -294,5 +337,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1048
-  X: 3870
-  Y: 165
+  X: 3856
+  Y: 247

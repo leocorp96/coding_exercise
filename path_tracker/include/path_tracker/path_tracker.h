@@ -13,7 +13,6 @@
 #include <std_msgs/Float32.h>
 #include <std_msgs/String.h>
 #include <Eigen/Core>
-#include <chrono>
 #include <thread>
 #include <path_tracker/utils.h>
 
@@ -57,13 +56,12 @@ namespace p_tracker
     */
     bool getStartCoordinates(geometry_msgs::Pose2D &start);
     /**
-    * @brief  Transform robot pose to the global frame
+    * @brief  Formats the robot pose to pose2D
     * @param  robot_pose Robot pose
     * @return True if transformation succeeded
     */
     bool getGlobalPose(geometry_msgs::Pose2D &robot_pose);
 
-    std::string global_frame_, odom_frame_;
     double xy_tolerance_, stuck_time_, stuck_dist_;
     ros::NodeHandle g_nh_, p_nh_;
     ros::Subscriber odom_sub_, path_sub_, cur_goal_sub_;
