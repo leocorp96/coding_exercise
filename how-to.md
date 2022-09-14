@@ -6,3 +6,7 @@
 4- Publishes waypoints in RViz for better visualization
 5- Respects the robot's acceleration limits
 
+
+## PACKAGE DEPENDENCIES
+- ros-noetic-jsk-rviz-plugins
+

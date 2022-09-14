@@ -192,7 +192,7 @@ namespace bup_local_planner
         publishWayPoints(global_plan_, wp_plan_pub_);
       }
     }
-    if(!use_static_)
+    if(!use_static_ && allow_plan_update_)
     {//! continuous global plan update option
       //reset the global plan
       global_plan_.clear();
@@ -202,6 +202,7 @@ namespace bup_local_planner
 
       //clear flags
       goal_reached_ = false;
+      allow_plan_update_ = false;
 
       //reduce plan resolution and publish waypoints if using P2P navigation
       if(use_p2p_)
@@ -249,7 +250,7 @@ namespace bup_local_planner
     //Select the immediate goal point and set "has_next" flag
     if(use_p2p_ && fetch_local_goal_ && !goal_reached_)
     {
-      has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_);
+      has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_); //!TODO select one point ahead if !use_static
       geometry_msgs::Pose2D cur_goal_msg;
       cur_goal_msg.x = goal_vec_.x();
       cur_goal_msg.y = goal_vec_.y();
@@ -289,6 +290,8 @@ namespace bup_local_planner
         cmd_vel.linear.y = 0.0;
         is_initial_rotation_to_goal_completed_ = false;
         fetch_local_goal_ = true;
+        if(!use_static_) //allow global plan to update if wpoint reached
+          allow_plan_update_ = true;
         ROS_WARN_STREAM("Going to next point");
         return true;
       }
@@ -397,7 +400,7 @@ namespace bup_local_planner
       return;
     visualization_msgs::MarkerArray m_arr;
     std_msgs::ColorRGBA color;
-    color.a = 0.7;
+    color.a = float(0.7);
     color.b = 0.0;
     color.g = 1.0;
     color.r = 0.0;

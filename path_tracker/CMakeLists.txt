@@ -9,6 +9,7 @@ add_compile_options(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  std_msgs
   nav_msgs
   roscpp
   tf2_geometry_msgs
@@ -16,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -86,7 +88,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES path_tracker
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp tf2_geometry_msgs
+  CATKIN_DEPENDS std_msgs geometry_msgs nav_msgs roscpp tf2_geometry_msgs
   DEPENDS system_lib
 )
 

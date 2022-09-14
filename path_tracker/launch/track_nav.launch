@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<launch>
+  <!-- Arguments -->
+  <arg name="plan_topic" default="/move_base/BotsAndUsPlannerROS/global_plan" />
+  <arg name="odom_topic" default="/odom" />
+  <arg name="current_goal_topic" default="/move_base/BotsAndUsPlannerROS/current_goal" />
+
+  <node pkg="path_tracker" type="path_tracker_node" respawn="false" name="pathtracker_node" output="screen">
+    <param name="global_frame" value="map" />
+    <param name="odom_frame" value="odom" />
+    <param name="xy_tolerance" value="0.02" />
+    <param name="stuck_time" value="2.0" />
+    <param name="stuck_dist" value="0.1" />
+    <remap from="plan" to="$(arg plan_topic)"/>
+    <remap from="odom" to="$(arg odom_topic)"/>
+    <remap from="current_goal" to="$(arg current_goal_topic)"/>
+  </node>
+</launch>
