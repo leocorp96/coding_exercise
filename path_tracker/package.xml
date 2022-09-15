@@ -30,6 +30,8 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>Eigen3</exec_depend>
 
+  <test_depend>rosunit</test_depend>
+
   <export>
   </export>
 </package>

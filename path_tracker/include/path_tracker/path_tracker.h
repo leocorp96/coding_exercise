@@ -42,11 +42,54 @@ namespace p_tracker
     * @brief  Checks if the robot reached its destination or stuck
     * @param e Timer event
     */
-    void stuckCB(const ros::TimerEvent &e);
+    void stuckCB(const ros::TimerEvent &);
     /**
     * @brief Executes the path tracking operations
     */
     void run();
+
+    /******** METHODS FOR TESTING **************/
+    /**
+    * @brief Sets up variables needed to test this class
+    * @param cur_goal Current goal
+    * @param odom Robot Odometry
+    * @param prev_odom Previous Robot Odometry
+    * @param plan Current robot plan
+    * @param xy_tolerance Goal tolerance
+    * @param stuck_time Robot stuck check periodicity
+    * @param stuck_dist Minimum distance to cover 'stuck_time' if not stuck
+    */
+    void _testConfig(const geometry_msgs::Pose2D &cur_goal,
+                     const nav_msgs::Odometry &odom,
+                     const nav_msgs::Odometry &prev_odom,
+                     const nav_msgs::Path &plan,
+                     const double &xy_tolerance,
+                     const double &stuck_time,
+                     const double &stuck_dist);
+    /**
+    * @brief  Encapsulates the 'getStartCoordinates' method
+    * @param  start Robot start coordinates
+    * @return True if start coordinates found
+    */
+    inline bool _getStartCoordinates(geometry_msgs::Pose2D &start)
+    { return getStartCoordinates(start);}
+    /**
+    * @brief  Encapsulates the 'getGlobalPose' method
+    * @param  robot_pose Robot pose
+    * @return True if transformation succeeded
+    */
+    inline bool _getGlobalPose(geometry_msgs::Pose2D &robot_pose)
+    { return getGlobalPose(robot_pose);}
+    /**
+    * @brief  Encapsulates the 'computePathError' method
+    * @param  robot_pose Robot pose
+    * @param  start Start pose
+    * @param  goal Goal pose
+    * @return True if transformation succeeded
+    */
+    inline double _computePathError(const geometry_msgs::Pose2D &robot_pose,
+                            const geometry_msgs::Pose2D &start)
+    { return computePathError(robot_pose, start); }
 
   private:
     /**
@@ -61,6 +104,15 @@ namespace p_tracker
     * @return True if transformation succeeded
     */
     bool getGlobalPose(geometry_msgs::Pose2D &robot_pose);
+    /**
+    * @brief  Computes the navigation error
+    * @param  robot_pose Robot pose
+    * @param  start Start pose
+    * @param  goal Goal pose
+    * @return True if transformation succeeded
+    */
+    double computePathError(const geometry_msgs::Pose2D &robot_pose,
+                            const geometry_msgs::Pose2D &start);
 
     double xy_tolerance_, stuck_time_, stuck_dist_;
     ros::NodeHandle g_nh_, p_nh_;
@@ -71,8 +123,6 @@ namespace p_tracker
     nav_msgs::Odometry odom_, prev_odom_;
     nav_msgs::Path plan_;
     geometry_msgs::Pose2D cur_goal_;
-    geometry_msgs::TransformStamped odom_global_tf_;
-    tf2_ros::Buffer tf_buffer_;
   };
 };
 

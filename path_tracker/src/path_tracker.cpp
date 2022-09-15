@@ -46,7 +46,7 @@ namespace p_tracker
     cur_goal_ = *msg;
   }
 
-  void PathTracker::stuckCB(const ros::TimerEvent &e)
+  void PathTracker::stuckCB(const ros::TimerEvent &)
   {//check if robot is stuck every 'stuck_time' seconds
     ROS_DEBUG("Checking if robot is stuck");
     geometry_msgs::Pose2D robot_pose, goal_pose;
@@ -121,6 +121,12 @@ namespace p_tracker
     return true;
   }
 
+  double PathTracker::computePathError(const geometry_msgs::Pose2D &robot_pose,
+                                       const geometry_msgs::Pose2D &start)
+  {
+    return atan2((cur_goal_.y - start.y), (cur_goal_.x - start.x)) -
+                         atan2((robot_pose.y - start.y), (robot_pose.x - start.x));
+  }
 
   void PathTracker::run()
   {
@@ -136,9 +142,7 @@ namespace p_tracker
       if(getStartCoordinates(start) && getGlobalPose(robot_pose))
       {
         boost::mutex::scoped_lock lock(cur_goal_mutex_);
-        double err = atan2((cur_goal_.y - start.y), (cur_goal_.x - start.x)) -
-                     atan2((robot_pose.y - start.y), (robot_pose.x - start.x));
-        err_msg.data = float(err);
+        err_msg.data = float(computePathError(robot_pose, start));
         tracker_pub_.publish(err_msg);
       }
       ROS_DEBUG("Running loop!");
@@ -150,5 +154,22 @@ namespace p_tracker
     odom_sub_.shutdown();
     path_sub_.shutdown();
     cur_goal_sub_.shutdown();
+  }
+
+  void PathTracker::_testConfig(const geometry_msgs::Pose2D &cur_goal,
+                                const nav_msgs::Odometry &odom,
+                                const nav_msgs::Odometry &prev_odom,
+                                const nav_msgs::Path &plan,
+                                const double &xy_tolerance,
+                                const double &stuck_time,
+                                const double &stuck_dist)
+  {
+    cur_goal_ = cur_goal;
+    odom_ = odom;
+    prev_odom_ = prev_odom;
+    plan_ = plan;
+    xy_tolerance_ = xy_tolerance;
+    stuck_time_ = stuck_time;
+    stuck_dist_ = stuck_dist;
   }
 };

@@ -6,6 +6,11 @@
 4- Publishes waypoints in RViz for better visualization
 5- Respects the robot's acceleration limits
 
+## PACKAGE TESTING
+- To run the tests only for the "path_tracker" use:
+  catkin_make run_tests_path_tracker
+  
+
 
 ## PACKAGE DEPENDENCIES
 - ros-noetic-jsk-rviz-plugins
