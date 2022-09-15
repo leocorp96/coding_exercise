@@ -20,6 +20,7 @@
 #include <botsandus_planner/footprint_helper.h>
 #include <botsandus_planner/costmap_model.h>
 #include <botsandus_planner/line_iterator.h>
+#include <random>
 
 using RobotPVariant = boost::variant<double, int, std::string, bool>;
 using RobotParams = std::map<std::string, RobotPVariant>;
@@ -70,8 +71,9 @@ namespace bup_local_planner
     inline std::string getBaseFrame() const { return costmap_ros_->getBaseFrameID(); }
     /**
     * @brief  Updates the robot global pose
+    * @param testing set to True if called during a test
     */
-    bool updateGlobalPose();
+    bool updateGlobalPose(const bool &testing=false);
     /**
     * @brief  Returns the robot global pose
     */
@@ -158,7 +160,7 @@ namespace bup_local_planner
     * @param  goal_th The orientation of goal
     * @return  True if trajectory has next point else, False
     */
-    bool selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan, Eigen::Vector2d &goal_vec, double &goal_th);
+    bool selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan, Eigen::Vector2d &goal_vec, double &goal_th, std::size_t &_index);
 
     /**
     * @brief  Reduces the global plan resolution
@@ -169,6 +171,25 @@ namespace bup_local_planner
     * @brief  Clears the visited points vector
     */
     void reset();
+
+    /*******************WRAPPERS FOR TESTING*******************/
+    /**
+    * @brief  Encapsulates 'checkVisited'
+    * @param  pts current point to check
+    */
+    inline bool _checkVisited(const Eigen::Vector2d &pts)
+    { return checkVisited(pts); }
+    /**
+    * @brief  Sets the global pose for testing
+    * @param  pose New robot pose
+    */
+    inline void _setGlobalPose(const geometry_msgs::PoseStamped &pose)
+    { global_pose_ = pose; }
+    /**
+    * @brief  Wrapper method for returning the 'visited_pts_' container
+    */
+    inline std::vector<Eigen::Vector2d> _visitedPoints()
+    { return visited_pts_; }
 
 
   private:

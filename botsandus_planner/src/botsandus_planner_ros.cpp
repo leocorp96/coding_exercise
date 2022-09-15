@@ -12,6 +12,7 @@ namespace bup_local_planner
     costmap_ros_(NULL), tf_(NULL)
   {
     initialize(name, tf, costmap_ros);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
   }
 
   BotsAndUsPlannerROS::~BotsAndUsPlannerROS()
@@ -265,7 +266,7 @@ namespace bup_local_planner
     //Select the immediate goal point and set "has_next" flag
     if(use_p2p_ && fetch_local_goal_ && !goal_reached_)
     {
-      has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_); //!TODO select one point ahead if !use_static
+      has_next_point_ = bup_->selectGoalPoint(transformed_plan, goal_vec_, goal_th_, idx_); //!TODO select one point ahead if !use_static
       geometry_msgs::Pose2D cur_goal_msg;
       cur_goal_msg.x = goal_vec_.x();
       cur_goal_msg.y = goal_vec_.y();
@@ -277,7 +278,7 @@ namespace bup_local_planner
     //!initial rotate to goal
     if(!is_initial_rotation_to_goal_completed_)
     {
-      ROS_WARN("Performing initial base-to-goal rotation");
+      ROS_DEBUG("Performing initial base-to-goal rotation");
       geometry_msgs::PoseStamped robot_pose = bup_->getGlobalPose();
       double goal_dir = atan2((goal_vec_.y() - robot_pose.pose.position.y),
                               (goal_vec_.x() - robot_pose.pose.position.x));
@@ -307,7 +308,7 @@ namespace bup_local_planner
         fetch_local_goal_ = true;
         if(!use_static_) //allow global plan to update if wpoint reached
           allow_plan_update_ = true;
-        ROS_WARN_STREAM("Going to next point");
+        ROS_DEBUG_STREAM("Going to next point");
         return true;
       }
       ROS_DEBUG("Final Goal Point reached!");
@@ -340,7 +341,7 @@ namespace bup_local_planner
         else
         {// perform final base rotation to goal orientation
           is_final_rotation_to_goal_completed_ = !bup_->rotateToGoal(robot_vel, goal_th_, cmd_vel);
-          ROS_WARN("Performing final base-to-goal rotation");
+          ROS_DEBUG("Performing final base-to-goal rotation");
         }
       }
 

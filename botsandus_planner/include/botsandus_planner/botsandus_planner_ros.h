@@ -67,6 +67,7 @@ namespace bup_local_planner
     goal_reached_, prune_plan_, fetch_local_goal_, use_p2p_, use_static_;
     Eigen::Vector2d goal_vec_;
     double goal_th_;
+    std::size_t idx_;
     RobotParams robot_params_;
     boost::shared_ptr<BotsAndUsPlanner> bup_;
     costmap_2d::Costmap2DROS *costmap_ros_;

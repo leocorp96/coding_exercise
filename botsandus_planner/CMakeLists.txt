@@ -32,26 +32,6 @@ generate_messages(
         std_msgs
 )
 
-################################################
-## Declare ROS dynamic reconfigure parameters ##
-################################################
-
-## To declare and build dynamic reconfigure parameters within this
-## package, follow these steps:
-## * In the file package.xml:
-##   * add a build_depend and a exec_depend tag for "dynamic_reconfigure"
-## * In this file (CMakeLists.txt):
-##   * add "dynamic_reconfigure" to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * uncomment the "generate_dynamic_reconfigure_options" section below
-##     and list every .cfg file to be processed
-
-## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
-
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -173,10 +153,14 @@ install(DIRECTORY include/${PROJECT_NAME}/
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_botsandus_planner.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
+ catkin_add_gtest(${PROJECT_NAME}-test src/test/utest.cpp)
+ if(TARGET ${PROJECT_NAME}-test)
+   target_link_libraries(${PROJECT_NAME}-test
+     ${PROJECT_NAME}
+     ${catkin_LIBRARIES}
+     ${Boost_LIBRARIES}
+     ${Eigen_LIBRARIES})
+ endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)

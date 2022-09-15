@@ -3,20 +3,27 @@
 namespace bup_local_planner
 {
   BotsAndUsPlanner::BotsAndUsPlanner(std::string name, costmap_2d::Costmap2DROS *costmap_ros, const RobotParams &robot_params):
-    costmap_ros_(NULL), costmap_(NULL), robot_params_(robot_params)
+    costmap_ros_(nullptr), costmap_(nullptr), robot_params_(robot_params)
   {
-    costmap_ros_ = costmap_ros;
-    costmap_ = costmap_ros_->getCostmap();
-    path_map_ = MapGrid(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
-    goal_map_ = MapGrid(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
-    robot_footprint_ = costmap_ros_->getRobotFootprint();
-    world_model_ = new CostmapModel(*costmap_);
+    if(costmap_ros)
+    {
+      costmap_ros_ = costmap_ros;
+      costmap_ = costmap_ros_->getCostmap();
+      path_map_ = MapGrid(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
+      goal_map_ = MapGrid(costmap_->getSizeInCellsX(), costmap_->getSizeInCellsY());
+      robot_footprint_ = costmap_ros_->getRobotFootprint();
+      world_model_ = new CostmapModel(*costmap_);
+    }
   }
 
-  bool BotsAndUsPlanner::updateGlobalPose()
+  bool BotsAndUsPlanner::updateGlobalPose(const bool &testing)
   {
-    if (!costmap_ros_->getRobotPose(global_pose_))
+    if(costmap_ros_ && !costmap_ros_->getRobotPose(global_pose_))
+    {
+      if(testing)
+        return true;
       return false;
+    }
     return true;
   }
 
@@ -681,7 +688,7 @@ namespace bup_local_planner
 
     double yaw = getYaw(global_pose_.pose.orientation);
     double vel_yaw = getYaw(robot_vel.pose.orientation);
-    ROS_WARN_STREAM("Goal Yaw: " << goal_th << " Robot Yaw: " << yaw);
+    ROS_DEBUG_STREAM("Goal Yaw: " << goal_th << " Robot Yaw: " << yaw);
     double ang_diff = angles::shortest_angular_distance(yaw, goal_th);
 
     //compute feasible velocity limits in robot space
@@ -708,7 +715,7 @@ namespace bup_local_planner
     bool valid_cmd = checkTrajectory(global_pose_.pose.position.x, global_pose_.pose.position.y, yaw,
                                      robot_vel.pose.position.x, robot_vel.pose.position.y, vel_yaw,
                                      0.0, 0.0, v_theta_samp);
-    ROS_WARN("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
+    ROS_DEBUG("Moving to desired goal orientation, th cmd: %.2f, valid_cmd: %d", v_theta_samp, valid_cmd);
     if(valid_cmd)
     {
       cmd_vel.linear.x = 0.0;
@@ -721,7 +728,7 @@ namespace bup_local_planner
     return false;
   }
 
-  Trajectory BotsAndUsPlanner::straightTrajectory(const Eigen::Vector3d &robot_pos, const Eigen::Vector3d& robot_vel/*, geometry_msgs::Twist& cmd_vel*/)
+  Trajectory BotsAndUsPlanner::straightTrajectory(const Eigen::Vector3d &robot_pos, const Eigen::Vector3d& robot_vel)
   {
     updateGlobalPose();
     //determine feasible velocity limits in robot space
@@ -771,7 +778,7 @@ namespace bup_local_planner
   }
 
   bool BotsAndUsPlanner::selectGoalPoint(std::vector<geometry_msgs::PoseStamped> &plan,
-                                         Eigen::Vector2d &goal_vec, double &goal_th)
+                                         Eigen::Vector2d &goal_vec, double &goal_th, std::size_t &_index)
   {
     if(!updateGlobalPose())
     {
@@ -786,7 +793,7 @@ namespace bup_local_planner
       goal_vec[0] = plan[idx].pose.position.x;
       goal_vec[1] = plan[idx].pose.position.y;
       goal_th = getYaw(plan[idx].pose.orientation);
-
+      _index = idx;
       if(!checkVisited(goal_vec) || visited_pts_.empty())
       {
         //break if chosen point not reached
@@ -809,7 +816,7 @@ namespace bup_local_planner
       }
     }
 
-    ROS_WARN_STREAM("Goal @: " << goal_vec.x() << " | " << goal_vec.y() <<
+    ROS_DEBUG_STREAM("Goal @: " << goal_vec.x() << " | " << goal_vec.y() <<
                     " Robot @: " << global_pose_.pose.position.x << " | " << global_pose_.pose.position.y);
     return (plan.size() == 1) ? false : true;
   }
